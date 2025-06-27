@@ -67,7 +67,7 @@ export const NavBar = () => {
                   noWrap
                   sx={{ fontWeight: 700, color: "#111827" }}
                 >
-                  Global Stable Rail
+                  Global Asset Rail
                 </Typography>
               </Link>
             </Box>
@@ -136,6 +136,9 @@ export const NavBar = () => {
                         ))}
                       </List>
                     </Box>
+                    <Box mt={2}>
+                      <ConnectButton />
+                    </Box>
                   </Drawer>
                 </>
               ) : (
@@ -156,10 +159,9 @@ export const NavBar = () => {
                       </Typography>
                     </Link>
                   ))}
+                  <ConnectButton />
                 </Box>
               )}
-
-              <ConnectButton />
             </Box>
           </Toolbar>
         </Container>

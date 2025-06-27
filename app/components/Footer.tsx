@@ -50,7 +50,7 @@ const Footer = () => {
           <div className="lg:col-span-1">
             <div className="flex items-center mb-4">
               <div className="w-8 h-8 bg-gradient-to-r from-blue-400 to-indigo-400 rounded-lg mr-3"></div>
-              <span className="text-xl font-bold">Global Stable Rail</span>
+              <span className="text-xl font-bold">Global Asset Rail</span>
             </div>
             <p className="text-slate-400 text-sm leading-relaxed">
               Next-generation stablecoin protocol enabling institutional-grade
@@ -87,7 +87,7 @@ const Footer = () => {
         {/* Bottom bar */}
         <div className="border-t border-slate-800 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center">
           <p className="text-slate-400 text-sm">
-            © 2024 Global Stable Rail Protocol. All rights reserved.
+            © 2024 Global Asset Rail Protocol. All rights reserved.
           </p>
           <div className="flex space-x-6 mt-4 md:mt-0">
             <Link

@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { Box, Typography, Button, Container } from "@mui/material";
-import Image from "next/image";
 
 const NotFound = () => {
   return (
@@ -59,7 +58,7 @@ const NotFound = () => {
               },
             }}
           >
-            Back to Global Stable Rail
+            Back to Global Asset Rail
           </Button>
         </Link>
       </Container>
