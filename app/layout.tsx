@@ -3,6 +3,7 @@ import "./globals.css";
 import WalletProvider from "./providers/WalletProvider";
 import { NavBar } from "./components/Nav";
 import Footer from "./components/Footer";
+import { AlertsProvider } from "./providers/AllertProvider";
 
 export default async function RootLayout({
   children,
@@ -18,9 +19,11 @@ export default async function RootLayout({
         {/* <Toaster position="bottom-right" /> */}
 
         <WalletProvider cookies={cookies}>
-          <NavBar />
-          <main className="">{children}</main>
-          <Footer />
+          <AlertsProvider>
+            <NavBar />
+            <main className="">{children}</main>
+            <Footer />
+          </AlertsProvider>
         </WalletProvider>
       </body>
     </html>
