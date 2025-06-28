@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useState, useContext, useEffect } from "react";
+import { useAccount, useChainId } from "wagmi";
 import {
   Card,
   CardContent,
@@ -18,12 +19,6 @@ import {
   SelectValue,
 } from "@/app/components/ui/select";
 import { Badge } from "@/app/components/ui/badge";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/app/components/ui/tabs";
 
 import {
   Building2,
@@ -31,14 +26,141 @@ import {
   CheckCircle,
   AlertTriangle,
   Globe,
-  TrendingUp,
+  Clock,
+  UserCheck,
+  XCircle,
 } from "lucide-react";
+
+import { useSignature } from "@/app/hooks/useSignature";
+import { useRegisterInstitution } from "@/app/hooks/useRegisterInstitution";
+import { ChainConfig } from "@/app/config/getChainConfig";
+import {
+  AlertsContext,
+  Alert_Kind__Enum_Type,
+} from "@/app/providers/AllertProvider";
 
 const InstitutionOnboarding = () => {
   const [kycStep, setKycStep] = useState(1);
   const [selectedCountry, setSelectedCountry] = useState("");
   const [institutionName, setInstitutionName] = useState("");
+  const [institutionType, setInstitutionType] = useState("");
   const [selectedAssets, setSelectedAssets] = useState<string[]>([]);
+
+  const { address } = useAccount();
+  const chainId = useChainId();
+  const { showAlert } = useContext(AlertsContext);
+
+  // Get contract address from chain config
+  const contractAddress = chainId
+    ? ChainConfig[chainId]?.KYC_Registry
+    : undefined;
+
+  const { signInstitutionAttestation, loading: signatureLoading } =
+    useSignature({
+      onPrompt: () => {
+        showAlert({
+          kind: Alert_Kind__Enum_Type.PROGRESS,
+          message: "Please sign the attestation.",
+        });
+      },
+      onSuccess: (signature, timestamp) => {
+        showAlert({
+          kind: Alert_Kind__Enum_Type.SUCCESS,
+          message: "Your attestation has been signed successfully.",
+        });
+        handleContractCall(signature, timestamp);
+      },
+      onError: (error) => {
+        showAlert({
+          kind: Alert_Kind__Enum_Type.ERROR,
+          message: "Failed to create signature. Please try again.",
+        });
+      },
+    });
+
+  const {
+    requestRegisterInstitution,
+    getInstitutionData,
+    institutionData,
+    mongoInstitutionData,
+    requestPhase,
+    loading: contractLoading,
+    loadingData,
+  } = useRegisterInstitution({
+    contractAddress: contractAddress!,
+    onPrompt: () => {
+      showAlert({
+        kind: Alert_Kind__Enum_Type.PROGRESS,
+        message: "Please confirm the transaction in your wallet.",
+      });
+    },
+    onSubmitted: (hash) => {
+      showAlert({
+        kind: Alert_Kind__Enum_Type.INFO,
+        message: `Your institution has been successfully registered.`,
+      });
+    },
+    onSuccess: (receipt) => {
+      // Refresh institution data after successful registration
+      if (address) {
+        getInstitutionData(address);
+      }
+    },
+    onError: (error) => {
+      showAlert({
+        kind: Alert_Kind__Enum_Type.ERROR,
+        message: "Failed to register institution. Please try again.",
+      });
+    },
+  });
+
+  // Fetch institution data when component mounts or address changes
+  useEffect(() => {
+    if (address && contractAddress) {
+      getInstitutionData(address);
+    }
+  }, [address, contractAddress]);
+
+  const handleContractCall = async (
+    signature: `0x${string}`,
+    timestamp: bigint
+  ) => {
+    if (!address || !contractAddress) return;
+
+    const data = {
+      participant: address,
+      delegetee: address,
+      name: institutionName,
+      signature: signature,
+      timestampOfRegistration: timestamp,
+    };
+
+    const mongoData = {
+      institutionType,
+      primaryJurisdiction: selectedCountry,
+      selectedAssets,
+    };
+
+    await requestRegisterInstitution(data, mongoData);
+  };
+
+  const handleSignAttestation = async () => {
+    if (!address || !contractAddress) {
+      showAlert({
+        kind: Alert_Kind__Enum_Type.ERROR,
+        message: "Please connect your wallet to continue.",
+      });
+      return;
+    }
+    const timestamp = BigInt(Math.floor(Date.now() / 1000));
+
+    await signInstitutionAttestation(
+      institutionName,
+      address,
+      contractAddress,
+      timestamp
+    );
+  };
 
   const countries = [
     { code: "IN", name: "India", currency: "INR", flag: "🇮🇳" },
@@ -113,6 +235,261 @@ const InstitutionOnboarding = () => {
     );
   };
 
+  // Show loading state while fetching data
+  if (loadingData) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading institution data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Determine the current status based on contract and MongoDB data
+  const getInstitutionStatus = () => {
+    // If no data exists, user hasn't registered
+    if (!institutionData && !mongoInstitutionData) {
+      return "NOT_REGISTERED";
+    }
+
+    if (institutionData?.isApproved === true) {
+      return "VERIFIED";
+    }
+
+    // If contract shows requested (phase 0) and we have MongoDB data, show under review
+    if (!institutionData?.isApproved && mongoInstitutionData) {
+      return "UNDER_REVIEW";
+    }
+
+    // If contract shows cancelled (phase 2)
+    if (requestPhase === 2) {
+      return "CANCELLED";
+    }
+
+    // If we have MongoDB data but no contract phase, show under review
+    if (mongoInstitutionData && requestPhase === null) {
+      return "UNDER_REVIEW";
+    }
+
+    return "NOT_REGISTERED";
+  };
+
+  const institutionStatus = getInstitutionStatus();
+
+  // Show cancelled state
+  if (institutionStatus === "CANCELLED") {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <div className="max-w-4xl mx-auto px-6 py-8">
+          <Card>
+            <CardHeader className="text-center">
+              <div className="mx-auto mb-4">
+                <XCircle className="h-16 w-16 text-red-500 mx-auto" />
+              </div>
+              <CardTitle className="text-2xl text-red-800">
+                KYC Verification Cancelled
+              </CardTitle>
+              <CardDescription className="text-lg">
+                Your institution registration has been cancelled
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="bg-red-50 rounded-lg p-6">
+                <div className="space-y-4">
+                  <div className="flex justify-between">
+                    <span className="font-medium">Institution Name:</span>
+                    <span>
+                      {mongoInstitutionData?.name || institutionData?.name}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium">Status:</span>
+                    <Badge
+                      variant="secondary"
+                      className="bg-red-100 text-red-800"
+                    >
+                      Cancelled
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-center text-sm text-slate-600">
+                <p>
+                  Your KYC verification has been cancelled. Please contact
+                  support for more information.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // Show KYC under process state
+  if (institutionStatus === "UNDER_REVIEW") {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <div className="max-w-4xl mx-auto px-6 py-8">
+          <Card>
+            <CardHeader className="text-center">
+              <div className="mx-auto mb-4">
+                <Clock className="h-16 w-16 text-amber-500 mx-auto" />
+              </div>
+              <CardTitle className="text-2xl text-amber-800">
+                KYC Verification Under Process
+              </CardTitle>
+              <CardDescription className="text-lg">
+                Your institution registration is being reviewed by our
+                compliance team
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="bg-amber-50 rounded-lg p-6">
+                <div className="space-y-4">
+                  <div className="flex justify-between">
+                    <span className="font-medium">Institution Name:</span>
+                    <span>
+                      {mongoInstitutionData?.name || institutionData?.name}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium">Institution Type:</span>
+                    <span>{mongoInstitutionData?.institutionType}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium">Jurisdiction:</span>
+                    <span>
+                      {
+                        countries.find(
+                          (c) =>
+                            c.code === mongoInstitutionData?.primaryJurisdiction
+                        )?.name
+                      }
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium">Registration Date:</span>
+                    <span>
+                      {mongoInstitutionData?.createdAt
+                        ? new Date(
+                            mongoInstitutionData.createdAt
+                          ).toLocaleDateString()
+                        : institutionData?.registrationTimestamp
+                        ? new Date(
+                            Number(institutionData.registrationTimestamp) * 1000
+                          ).toLocaleDateString()
+                        : "N/A"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium">Status:</span>
+                    <Badge
+                      variant="secondary"
+                      className="bg-amber-100 text-amber-800"
+                    >
+                      Under Review
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-center text-sm text-slate-600">
+                <p>
+                  You will be notified once your KYC verification is complete.
+                </p>
+                <p>This process typically takes 1-3 business days.</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // Show approved KYC state
+  if (institutionStatus === "VERIFIED") {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <div className="max-w-4xl mx-auto px-6 py-8">
+          <Card>
+            <CardHeader className="text-center">
+              <div className="mx-auto mb-4">
+                <UserCheck className="h-16 w-16 text-green-500 mx-auto" />
+              </div>
+              <CardTitle className="text-2xl text-green-800">
+                KYC Verification Complete
+              </CardTitle>
+              <CardDescription className="text-lg">
+                Your institution is fully verified and ready to participate
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="bg-green-50 rounded-lg p-6">
+                <div className="space-y-4">
+                  <div className="flex justify-between">
+                    <span className="font-medium">Institution Name:</span>
+                    <span>
+                      {mongoInstitutionData?.name || institutionData?.name}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium">Institution Type:</span>
+                    <span>{mongoInstitutionData?.institutionType}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium">Jurisdiction:</span>
+                    <span>
+                      {
+                        countries.find(
+                          (c) =>
+                            c.code === mongoInstitutionData?.primaryJurisdiction
+                        )?.name
+                      }
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium">Registration Date:</span>
+                    <span>
+                      {mongoInstitutionData?.createdAt
+                        ? new Date(
+                            mongoInstitutionData.createdAt
+                          ).toLocaleDateString()
+                        : institutionData?.registrationTimestamp
+                        ? new Date(
+                            Number(institutionData.registrationTimestamp) * 1000
+                          ).toLocaleDateString()
+                        : "N/A"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium">Status:</span>
+                    <Badge
+                      variant="secondary"
+                      className="bg-green-100 text-green-800"
+                    >
+                      Verified
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium">Delegatee Address:</span>
+                    <span className="font-mono text-sm">
+                      {institutionData?.delegetee}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // Show original onboarding form if no registration data exists
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="max-w-7xl mx-auto px-6 py-8">
@@ -177,11 +554,14 @@ const InstitutionOnboarding = () => {
 
                 <div>
                   <Label htmlFor="institution-type">Institution Type</Label>
-                  <Select>
+                  <Select
+                    value={institutionType}
+                    onValueChange={setInstitutionType}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select institution type" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-white shadow-md border border-gray-200 rounded-md">
                       <SelectItem value="commercial-bank">
                         Commercial Bank
                       </SelectItem>
@@ -210,7 +590,7 @@ const InstitutionOnboarding = () => {
                     <SelectTrigger>
                       <SelectValue placeholder="Select your primary jurisdiction" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-white shadow-md border border-gray-200 rounded-md">
                       {countries.map((country) => (
                         <SelectItem key={country.code} value={country.code}>
                           {country.flag} {country.name} ({country.currency})
@@ -233,9 +613,11 @@ const InstitutionOnboarding = () => {
                 </div>
 
                 <Button
-                  className="w-full"
+                  className="w-full bg-black text-white py-3 px-4 rounded-md font-medium transition-all duration-200 hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={() => setKycStep(2)}
-                  disabled={!institutionName || !selectedCountry}
+                  disabled={
+                    !institutionName || !selectedCountry || !institutionType
+                  }
                 >
                   Continue to Jurisdiction Setup
                 </Button>
@@ -308,7 +690,7 @@ const InstitutionOnboarding = () => {
                     Back
                   </Button>
                   <Button
-                    className="flex-1"
+                    className="w-full bg-black text-white py-3 px-4 rounded-md font-medium transition-all duration-200 hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={() => setKycStep(3)}
                     disabled={selectedAssets.length === 0}
                   >
@@ -350,6 +732,9 @@ const InstitutionOnboarding = () => {
                         <strong>Institution:</strong> {institutionName}
                       </div>
                       <div>
+                        <strong>Type:</strong> {institutionType}
+                      </div>
+                      <div>
                         <strong>Jurisdiction:</strong>{" "}
                         {
                           countries.find((c) => c.code === selectedCountry)
@@ -359,6 +744,9 @@ const InstitutionOnboarding = () => {
                       <div>
                         <strong>Selected Assets:</strong>{" "}
                         {selectedAssets.length} assets across multiple tiers
+                      </div>
+                      <div>
+                        <strong>Connected Wallet:</strong> {address}
                       </div>
                     </div>
                   </div>
@@ -381,8 +769,14 @@ const InstitutionOnboarding = () => {
                   <Button variant="outline" onClick={() => setKycStep(2)}>
                     Back
                   </Button>
-                  <Button className="flex-1">
-                    Sign Attestation & Complete Onboarding
+                  <Button
+                    className="flex-1"
+                    onClick={handleSignAttestation}
+                    disabled={signatureLoading || contractLoading || !address}
+                  >
+                    {signatureLoading || contractLoading
+                      ? "Processing..."
+                      : "Sign Attestation & Complete Onboarding"}
                   </Button>
                 </div>
               </CardContent>
@@ -414,7 +808,7 @@ const InstitutionOnboarding = () => {
                       <div className="text-2xl mb-2">{country.flag}</div>
                       <div className="font-medium">{country.name}</div>
                       <div className="text-sm text-slate-500 mb-3">
-                        s{country.currency}
+                        {country.currency}
                       </div>
                       <div className="space-y-2 text-xs">
                         <div className="flex justify-between">

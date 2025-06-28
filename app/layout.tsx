@@ -4,6 +4,7 @@ import WalletProvider from "./providers/WalletProvider";
 import { NavBar } from "./components/Nav";
 import Footer from "./components/Footer";
 import { AlertsProvider } from "./providers/AllertProvider";
+import { Notifier } from "./hooks/Notifier";
 
 export default async function RootLayout({
   children,
@@ -20,6 +21,7 @@ export default async function RootLayout({
 
         <WalletProvider cookies={cookies}>
           <AlertsProvider>
+            <Notifier />
             <NavBar />
             <main className="">{children}</main>
             <Footer />
