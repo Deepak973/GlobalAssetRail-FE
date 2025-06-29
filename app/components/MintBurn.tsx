@@ -373,6 +373,7 @@ const MintBurn = () => {
           });
 
           // Convert balance to human readable format
+          console.log("balance", balance);
           const balanceNumber = Number(balance) / Math.pow(10, asset.decimals);
           newBalances[assetKey] = balanceNumber;
         } catch (error) {
@@ -1072,9 +1073,8 @@ const MintBurn = () => {
                               </div>
                             </div>
                             <div className="text-sm font-medium">
-                              {Number(formatTokenAmount(balance, key)).toFixed(
-                                2
-                              )}{" "}
+                              {balance.toFixed(2)}
+
                               {erc20Assets[key]?.symbol}
                             </div>
                           </div>
