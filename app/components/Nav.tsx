@@ -65,7 +65,7 @@ export const NavBar = () => {
                 }}
               >
                 <Image
-                  src="/gar-logo.png"
+                  src="/gar-logo.jpg"
                   alt="Global Asset Rail Logo"
                   width={32}
                   height={32}

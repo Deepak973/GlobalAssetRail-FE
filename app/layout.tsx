@@ -10,9 +10,9 @@ export const metadata = {
   title: "Global Asset Rail",
   description: "Global Asset Movement Platform",
   icons: {
-    icon: "/gar-logo.png",
-    shortcut: "/gar-logo.png",
-    apple: "/gar-logo.png",
+    icon: "/gar-logo.jpg",
+    shortcut: "/gar-logo.jpg",
+    apple: "/gar-logo.jpg",
   },
 };
 export default async function RootLayout({
