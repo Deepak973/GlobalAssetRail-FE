@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import {
   Card,
   CardContent,
@@ -41,6 +41,12 @@ import { readContract } from "@wagmi/core";
 import { useVaultManager } from "../hooks/useVaultManager";
 import { ChainConfig } from "../config/getChainConfig";
 import { config } from "../config/wagmiConfig";
+import { useStablecoinMint } from "../hooks/useStablecoinMint";
+import {
+  AlertsContext,
+  Alert_Kind__Enum_Type,
+} from "@/app/providers/AllertProvider";
+import { useTokenApprove } from "../hooks/useToken";
 
 interface Asset {
   name: string;
@@ -95,6 +101,7 @@ interface Country {
 const MintBurn = () => {
   const { address } = useAccount();
   const chainId = useChainId();
+  const { showAlert } = useContext(AlertsContext);
 
   const [activeTab, setActiveTab] = useState("deposit");
   const [selectedCountry, setSelectedCountry] = useState("");
@@ -142,6 +149,81 @@ const MintBurn = () => {
     vaultManagerAddress,
   });
 
+  const {
+    balance,
+    mintStablecoin,
+    fetchBalance,
+    getStablecoinMetadata,
+    loading: stablecoinLoading,
+    stablecoinAddress,
+  } = useStablecoinMint({
+    userAddress: address,
+    onPrompt: () => {
+      showAlert({
+        kind: Alert_Kind__Enum_Type.PROGRESS,
+        message:
+          "Please confirm the stablecoin minting transaction in your wallet.",
+      });
+    },
+    onSubmitted: (hash) => {
+      showAlert({
+        kind: Alert_Kind__Enum_Type.INFO,
+        message: "Stablecoin minting transaction submitted successfully.",
+      });
+    },
+    onSuccess: (receipt) => {
+      showAlert({
+        kind: Alert_Kind__Enum_Type.SUCCESS,
+        message: "Stablecoin minted successfully!",
+      });
+      // Refresh balance after successful minting
+      if (address) {
+        fetchBalance();
+      }
+    },
+    onError: (error) => {
+      showAlert({
+        kind: Alert_Kind__Enum_Type.ERROR,
+        message: `Failed to mint stablecoin: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`,
+      });
+    },
+  });
+
+  // Add useToken hook for stablecoin metadata
+  const {
+    getTokenMetadata: getStablecoinTokenMetadata,
+    loading: stablecoinMetadataLoading,
+  } = useTokenApprove({
+    token: stablecoinAddress,
+    owner: address,
+    spender: stablecoinAddress, // For metadata only, not approval
+  });
+
+  // Add state for stablecoin metadata
+  const [stablecoinMetadata, setStablecoinMetadata] = useState<{
+    symbol: string;
+    name: string;
+    decimals: number;
+  } | null>(null);
+
+  // Fetch stablecoin metadata when stablecoin address is available
+  useEffect(() => {
+    const fetchStablecoinMetadata = async () => {
+      if (!stablecoinAddress) return;
+
+      try {
+        const metadata = await getStablecoinTokenMetadata();
+        setStablecoinMetadata(metadata);
+      } catch (error) {
+        console.error("Error fetching stablecoin metadata:", error);
+      }
+    };
+
+    fetchStablecoinMetadata();
+  }, [stablecoinAddress, getStablecoinTokenMetadata]);
+
   const stablecoins = [
     {
       symbol: "sINR",
@@ -170,33 +252,6 @@ const MintBurn = () => {
       available: "380M",
       rate: "1.00",
       fee: "0.1%",
-    },
-  ];
-
-  const recentOperations = [
-    {
-      id: "1",
-      type: "Deposit",
-      asset: "INR-SGB",
-      amount: "100,000",
-      time: "2m ago",
-      status: "completed",
-    },
-    {
-      id: "2",
-      type: "Mint Stablecoin",
-      currency: "sINR",
-      amount: "50,000",
-      time: "5m ago",
-      status: "completed",
-    },
-    {
-      id: "3",
-      type: "Deposit",
-      asset: "INR-CORP",
-      amount: "75,000",
-      time: "8m ago",
-      status: "pending",
     },
   ];
 
@@ -523,40 +578,40 @@ const MintBurn = () => {
     }
   };
 
-  const handleMintStablecoin = () => {
+  const handleMintStablecoin = async () => {
     if (!selectedStablecoin || !stablecoinAmount || !selectedAsset) return;
 
     const amount = parseFloat(stablecoinAmount);
     const fee = calculateStablecoinFee(selectedStablecoin, amount);
     const requiredErc20 = amount + fee;
 
-    if (erc20Balances[selectedAsset] >= requiredErc20) {
-      // Update balances
+    if (erc20Balances[selectedAsset] < requiredErc20) {
+      showAlert({
+        kind: Alert_Kind__Enum_Type.ERROR,
+        message: "Insufficient ERC20 tokens for minting",
+      });
+      return;
+    }
+
+    try {
+      // Convert amount to wei (assuming 18 decimals for stablecoin)
+      const amountInWei = BigInt(Math.floor(amount * Math.pow(10, 18)));
+
+      await mintStablecoin(amountInWei);
+
+      // Update ERC20 balances (deduct the required amount)
       setErc20Balances((prev) => ({
         ...prev,
         [selectedAsset]: prev[selectedAsset] - requiredErc20,
-      }));
-
-      setStablecoinBalances((prev) => ({
-        ...prev,
-        [selectedStablecoin]: prev[selectedStablecoin] + amount,
       }));
 
       // Reset form
       setSelectedStablecoin("");
       setStablecoinAmount("");
       setSelectedAsset("");
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "completed":
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case "pending":
-        return <AlertCircle className="h-4 w-4 text-yellow-500" />;
-      default:
-        return <AlertCircle className="h-4 w-4 text-gray-500" />;
+    } catch (error) {
+      // Error handling is now done by the hook callbacks
+      console.error("Error minting stablecoin:", error);
     }
   };
 
@@ -947,14 +1002,11 @@ const MintBurn = () => {
                             <div className="flex justify-between text-sm font-medium">
                               <span>Total ERC20 Required:</span>
                               <span className="text-red-600">
-                                {formatTokenAmount(
-                                  parseFloat(stablecoinAmount) +
-                                    calculateStablecoinFee(
-                                      selectedStablecoin,
-                                      parseFloat(stablecoinAmount)
-                                    ),
-                                  selectedAsset
-                                )}{" "}
+                                {Number(stablecoinAmount) +
+                                  calculateStablecoinFee(
+                                    selectedStablecoin,
+                                    parseFloat(stablecoinAmount)
+                                  )}{" "}
                                 {erc20Assets[selectedAsset]?.symbol}
                               </span>
                             </div>
@@ -973,15 +1025,100 @@ const MintBurn = () => {
                             selectedStablecoin,
                             parseFloat(stablecoinAmount)
                           ) >
-                          (erc20Balances[selectedAsset] || 0)
+                          (erc20Balances[selectedAsset] || 0) ||
+                        stablecoinLoading
                       }
                       onClick={handleMintStablecoin}
                       size="lg"
                     >
-                      Mint Stablecoins
+                      {stablecoinLoading ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Minting...
+                        </>
+                      ) : (
+                        "Mint Stablecoins"
+                      )}
                     </Button>
                   </TabsContent>
                 </Tabs>
+              </CardContent>
+            </Card>
+
+            {/* Available Assets - Moved below Asset Operations */}
+            <Card className="mt-8">
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Globe className="h-5 w-5 mr-2" />
+                  Available Assets
+                </CardTitle>
+                <CardDescription>
+                  {selectedCountry
+                    ? `${
+                        availableCountries.find(
+                          (c) => c.code === selectedCountry
+                        )?.name
+                      } assets`
+                    : "Select a country to view assets"}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {!selectedCountry ? (
+                  <div className="text-center py-4">
+                    <p className="text-sm text-slate-600">
+                      Please select a country to view available assets
+                    </p>
+                  </div>
+                ) : loadingAssets ? (
+                  <div className="text-center py-4">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-black mx-auto mb-2"></div>
+                    <p className="text-sm text-slate-600">Loading assets...</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {Object.entries(offChainAssets).map(([key, asset]) => (
+                      <div
+                        key={key}
+                        className="p-3 bg-white border border-slate-200 rounded-lg"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="font-medium text-slate-900">
+                            {key}
+                          </div>
+                          <Badge className={getTierColor(asset.tier)}>
+                            Tier {asset.tier}
+                          </Badge>
+                        </div>
+                        <div className="text-sm text-slate-600 mb-2">
+                          {asset.name}
+                        </div>
+                        <div className="text-xs text-slate-500 mb-2">
+                          {asset.description}
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <span className="text-slate-500">Haircut:</span>
+                            <span className="ml-1 font-medium">
+                              {asset.haircutBP} BP
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-slate-500">Yield:</span>
+                            <span className="ml-1 font-medium text-green-600">
+                              {asset.yieldRate} BP
+                            </span>
+                          </div>
+                        </div>
+                        {asset.availableSupply && (
+                          <div className="text-xs text-slate-500 mt-1">
+                            Supply: {asset.availableSupply} | Market Cap:{" "}
+                            {asset.marketCap}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -1073,9 +1210,7 @@ const MintBurn = () => {
                               </div>
                             </div>
                             <div className="text-sm font-medium">
-                              {balance.toFixed(2)}
-
-                              {erc20Assets[key]?.symbol}
+                              {balance.toFixed(2)} {erc20Assets[key]?.symbol}
                             </div>
                           </div>
                         ))}
@@ -1088,16 +1223,61 @@ const MintBurn = () => {
                         Stablecoins
                       </h4>
                       <div className="space-y-2">
+                        {stablecoinAddress && stablecoinMetadata && (
+                          <div className="flex items-center justify-between p-2 bg-green-50 rounded">
+                            <div>
+                              <div className="text-sm font-medium">
+                                {stablecoinMetadata.symbol}
+                              </div>
+                              <div className="text-xs text-slate-500">
+                                {stablecoinMetadata.name}
+                              </div>
+                              <div className="text-xs text-slate-500">
+                                {stablecoinAddress.slice(0, 6)}...
+                                {stablecoinAddress.slice(-4)}
+                              </div>
+                            </div>
+                            <div className="text-sm font-medium">
+                              {stablecoinMetadataLoading ? (
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600"></div>
+                              ) : (
+                                `${(
+                                  Number(balance) /
+                                  Math.pow(10, stablecoinMetadata.decimals)
+                                ).toFixed(2)} ${stablecoinMetadata.symbol}`
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Show loading state while fetching metadata */}
+                        {stablecoinAddress &&
+                          !stablecoinMetadata &&
+                          stablecoinMetadataLoading && (
+                            <div className="flex items-center justify-between p-2 bg-green-50 rounded">
+                              <div>
+                                <div className="text-sm font-medium">
+                                  Loading...
+                                </div>
+                                <div className="text-xs text-slate-500">
+                                  Fetching stablecoin data
+                                </div>
+                              </div>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600"></div>
+                            </div>
+                          )}
+
+                        {/* Keep the mock stablecoins for now, but they won't be used for actual minting */}
                         {Object.entries(stablecoinBalances).map(
                           ([key, balance]) => (
                             <div
                               key={key}
-                              className="flex items-center justify-between p-2 bg-green-50 rounded"
+                              className="flex items-center justify-between p-2 bg-gray-50 rounded opacity-50"
                             >
                               <div>
                                 <div className="text-sm font-medium">{key}</div>
                                 <div className="text-xs text-slate-500">
-                                  Stablecoin
+                                  Mock Stablecoin
                                 </div>
                               </div>
                               <div className="text-sm font-medium">
@@ -1116,121 +1296,6 @@ const MintBurn = () => {
                     </p>
                   </div>
                 )}
-              </CardContent>
-            </Card>
-
-            {/* Available Assets */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Globe className="h-5 w-5 mr-2" />
-                  Available Assets
-                </CardTitle>
-                <CardDescription>
-                  {selectedCountry
-                    ? `${
-                        availableCountries.find(
-                          (c) => c.code === selectedCountry
-                        )?.name
-                      } assets`
-                    : "Select a country to view assets"}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {!selectedCountry ? (
-                  <div className="text-center py-4">
-                    <p className="text-sm text-slate-600">
-                      Please select a country to view available assets
-                    </p>
-                  </div>
-                ) : loadingAssets ? (
-                  <div className="text-center py-4">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-black mx-auto mb-2"></div>
-                    <p className="text-sm text-slate-600">Loading assets...</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {Object.entries(offChainAssets).map(([key, asset]) => (
-                      <div
-                        key={key}
-                        className="p-3 bg-white border border-slate-200 rounded-lg"
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="font-medium text-slate-900">
-                            {key}
-                          </div>
-                          <Badge className={getTierColor(asset.tier)}>
-                            Tier {asset.tier}
-                          </Badge>
-                        </div>
-                        <div className="text-sm text-slate-600 mb-2">
-                          {asset.name}
-                        </div>
-                        <div className="text-xs text-slate-500 mb-2">
-                          {asset.description}
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                          <div>
-                            <span className="text-slate-500">Haircut:</span>
-                            <span className="ml-1 font-medium">
-                              {asset.haircutBP} BP
-                            </span>
-                          </div>
-                          <div>
-                            <span className="text-slate-500">Yield:</span>
-                            <span className="ml-1 font-medium text-green-600">
-                              {asset.yieldRate} BP
-                            </span>
-                          </div>
-                        </div>
-                        {asset.availableSupply && (
-                          <div className="text-xs text-slate-500 mt-1">
-                            Supply: {asset.availableSupply} | Market Cap:{" "}
-                            {asset.marketCap}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Recent Operations */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Operations</CardTitle>
-                <CardDescription>Your latest transactions</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {recentOperations.map((op) => (
-                    <div
-                      key={op.id}
-                      className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-lg"
-                    >
-                      <div className="flex items-center space-x-3">
-                        {getStatusIcon(op.status)}
-                        <div>
-                          <div className="flex items-center space-x-2">
-                            <span className="font-medium text-slate-900">
-                              {op.type}
-                            </span>
-                            <Badge variant="secondary">
-                              {op.asset || op.currency}
-                            </Badge>
-                          </div>
-                          <div className="text-xs text-slate-500">
-                            {op.time}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm font-medium">{op.amount}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
               </CardContent>
             </Card>
           </div>
