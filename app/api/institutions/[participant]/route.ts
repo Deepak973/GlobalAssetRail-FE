@@ -3,11 +3,12 @@ import { InstitutionService } from "@/app/lib/services/institutionService";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { participant: string } }
+  { params }: { params: Promise<{ participant: string }> }
 ) {
   try {
+    const { participant } = await params;
     const institution = await InstitutionService.getInstitutionByParticipant(
-      params.participant
+      participant
     );
 
     if (!institution) {
@@ -29,12 +30,13 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { participant: string } }
+  { params }: { params: Promise<{ participant: string }> }
 ) {
   try {
+    const { participant } = await params;
     const body = await request.json();
     const success = await InstitutionService.updateInstitution(
-      params.participant,
+      participant,
       body
     );
 
