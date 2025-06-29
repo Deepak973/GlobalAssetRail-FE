@@ -14,6 +14,7 @@ import {
   ListItemText,
   Toolbar,
   Typography,
+  Tooltip,
   useMediaQuery,
   useTheme,
 } from "@mui/material";
@@ -25,7 +26,7 @@ const navLinks = [
   { label: "Dashboard", href: "/dashboard" },
   { label: "Institution Onboarding", href: "/institution-onboarding" },
   { label: "Mint/Burn", href: "/mint-burn" },
-  { label: "Cross-Border", href: "/cross-border" },
+  { label: "Cross-Border", href: "/cross-border", comingSoon: true },
 ];
 
 export const NavBar = () => {
@@ -121,17 +122,43 @@ export const NavBar = () => {
                             component={Link}
                             href={link.href}
                             onClick={toggleDrawer(false)}
+                            sx={{
+                              flexDirection: "column",
+                              alignItems: "flex-start",
+                            }}
                           >
-                            <ListItemText
-                              primary={link.label}
-                              primaryTypographyProps={{
-                                sx: {
-                                  color:
-                                    pathname === link.href ? "black" : "gray",
-                                  fontWeight: 500,
-                                },
+                            <Box
+                              sx={{
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "flex-start",
                               }}
-                            />
+                            >
+                              <ListItemText
+                                primary={link.label}
+                                primaryTypographyProps={{
+                                  sx: {
+                                    color:
+                                      pathname === link.href ? "black" : "gray",
+                                    fontWeight: 500,
+                                  },
+                                }}
+                              />
+                              {link.comingSoon && (
+                                <Typography
+                                  variant="caption"
+                                  sx={{
+                                    color: "#22c55e",
+                                    fontSize: "0.75rem",
+                                    fontWeight: 500,
+                                    mt: 0.5,
+                                    ml: 2,
+                                  }}
+                                >
+                                  Coming Soon
+                                </Typography>
+                              )}
+                            </Box>
                           </ListItem>
                         ))}
                       </List>
@@ -144,20 +171,35 @@ export const NavBar = () => {
               ) : (
                 <Box display="flex" gap={3} alignItems="center">
                   {navLinks.map((link) => (
-                    <Link key={link.href} href={link.href} passHref>
-                      <Typography
-                        variant="body1"
-                        component="span"
+                    <Tooltip
+                      key={link.href}
+                      title={link.comingSoon ? "Coming Soon" : ""}
+                      arrow
+                      placement="bottom"
+                    >
+                      <Box
                         sx={{
-                          color: pathname === link.href ? "black" : "gray",
-                          fontWeight: 500,
-                          cursor: "pointer",
-                          "&:hover": { color: "black" },
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
                         }}
                       >
-                        {link.label}
-                      </Typography>
-                    </Link>
+                        <Link href={link.href} passHref>
+                          <Typography
+                            variant="body1"
+                            component="span"
+                            sx={{
+                              color: pathname === link.href ? "black" : "gray",
+                              fontWeight: 500,
+                              cursor: "pointer",
+                              "&:hover": { color: "black" },
+                            }}
+                          >
+                            {link.label}
+                          </Typography>
+                        </Link>
+                      </Box>
+                    </Tooltip>
                   ))}
                   <ConnectButton />
                 </Box>

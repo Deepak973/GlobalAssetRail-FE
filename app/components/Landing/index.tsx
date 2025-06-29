@@ -8,6 +8,7 @@ import {
   CardTitle,
 } from "@/app/components/ui/card";
 import { ArrowRight, Shield, Globe, TrendingUp, Zap } from "lucide-react";
+import Link from "next/link";
 import Hero from "./Hero";
 import ProtocolOverview from "./ProtocolOverview";
 import MetricsGrid from "./MetricsGrid";
@@ -85,21 +86,24 @@ const Index = () => {
             efficient, yield-generating stablecoin operations.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button
-              size="lg"
-              className="bg-white text-blue-600 hover:bg-gray-100 text-lg px-8 py-4"
-              // onClick={() => navigate("/dashboard")}
-            >
-              Launch Dashboard
-              <ArrowRight className="ml-2 h-5 w-5" />
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              className="border-white text-white hover:bg-white hover:text-blue-600 text-lg px-8 py-4"
-            >
-              View Documentation
-            </Button>
+            <Link href="/dashboard">
+              <Button
+                size="lg"
+                className="bg-white text-blue-600 hover:bg-gray-100 text-lg px-8 py-4"
+              >
+                Launch Dashboard
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </Link>
+            <Link href="/institution-onboarding">
+              <Button
+                size="lg"
+                variant="outline"
+                className="bg-white text-blue-600 hover:bg-gray-100 text-lg px-8 py-4"
+              >
+                Get Started
+              </Button>
+            </Link>
           </div>
         </div>
       </section>

@@ -68,13 +68,6 @@ const ProtocolOverview = () => {
                   <p className="text-sm text-slate-500">{step.details}</p>
                 </CardContent>
               </Card>
-
-              {/* Arrow for desktop */}
-              {index < steps.length - 1 && (
-                <div className="hidden lg:block absolute top-1/2 -right-4 transform -translate-y-1/2">
-                  <ArrowRight className="h-8 w-8 text-slate-300" />
-                </div>
-              )}
             </div>
           ))}
         </div>
@@ -89,7 +82,10 @@ const ProtocolOverview = () => {
               { name: "Vault Manager", desc: "Collateral tracking & NAV" },
               { name: "Oracle Network", desc: "Chainlink price feeds" },
               { name: "Peg Controller", desc: "Dynamic fee adjustment" },
-              { name: "Bridge Adapter", desc: "Cross-chain messaging" },
+              {
+                name: "Chainlink Functions",
+                desc: "Real-time NAV calculation",
+              },
             ].map((component, index) => (
               <div key={index} className="text-center">
                 <div className="w-16 h-16 bg-blue-600 rounded-lg mx-auto mb-3 flex items-center justify-center">

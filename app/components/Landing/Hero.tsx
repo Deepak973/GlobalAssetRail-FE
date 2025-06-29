@@ -1,5 +1,6 @@
 import { Button } from "@/app/components/ui/button";
 import { ArrowRight, Play } from "lucide-react";
+import Link from "next/link";
 
 const Hero = () => {
   return (
@@ -29,14 +30,15 @@ const Hero = () => {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4">
-              <Button
-                size="lg"
-                className="bg-blue-600 hover:bg-blue-700 text-lg px-8 py-4"
-                // onClick={() => navigate('/dashboard')}
-              >
-                Launch Protocol
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
+              <Link href="/dashboard">
+                <Button
+                  size="lg"
+                  className="bg-blue-600 hover:bg-blue-700 text-lg px-8 py-4"
+                >
+                  Launch Protocol
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
+              </Link>
               <Button
                 size="lg"
                 variant="outline"
@@ -70,40 +72,77 @@ const Hero = () => {
 
           {/* Right Content - Visual */}
           <div className="relative">
-            {/* Chainlink Powered Badge */}
+            {/* Enhanced Chainlink Powered Badge */}
             <div className="flex justify-center mb-8">
-              <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-lg shadow-lg">
-                {/* Brand */}
-                <div className="lg:col-span-1">
-                  <div className="flex items-center mb-4 space-x-3">
-                    <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 37.8 43.6"
-                        className="w-5 h-5 text-blue-600"
-                        fill="currentColor"
-                      >
-                        <path
-                          className="fill-blue-600"
-                          d="M18.9,0l-4,2.3L4,8.6,0,10.9V32.7L4,35l11,6.3,4,2.3,4-2.3L33.8,35l4-2.3V10.9l-4-2.3L22.9,2.3ZM8,28.1V15.5L18.9,9.2l10.9,6.3V28.1L18.9,34.4Z"
-                        />
-                      </svg>
+              <div className="relative bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white px-8 py-6 rounded-2xl shadow-2xl border border-white/20 backdrop-blur-sm transform hover:scale-105 transition-all duration-300">
+                {/* Glowing effect */}
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-400/20 via-indigo-400/20 to-purple-400/20 rounded-2xl blur-xl"></div>
+
+                {/* Content */}
+                <div className="relative z-10">
+                  {/* Header with enhanced branding */}
+                  <div className="flex items-center justify-center mb-4 space-x-4">
+                    <div className="relative">
+                      <div className="w-12 h-12 bg-gradient-to-br from-white to-blue-50 rounded-full flex items-center justify-center shadow-lg border-2 border-white/30">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 37.8 43.6"
+                          className="w-7 h-7 text-blue-600"
+                          fill="currentColor"
+                        >
+                          <path d="M18.9,0l-4,2.3L4,8.6,0,10.9V32.7L4,35l11,6.3,4,2.3,4-2.3L33.8,35l4-2.3V10.9l-4-2.3L22.9,2.3ZM8,28.1V15.5L18.9,9.2l10.9,6.3V28.1L18.9,34.4Z" />
+                        </svg>
+                      </div>
+                      {/* Animated ring */}
+                      <div className="absolute inset-0 w-12 h-12 border-2 border-blue-400/50 rounded-full animate-ping"></div>
                     </div>
-                    <span className="font-semibold text-lg">
-                      Powered by Chainlink
-                    </span>
+                    <div className="text-center">
+                      <span className="font-bold text-xl bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent">
+                        Powered by Chainlink
+                      </span>
+                    </div>
                   </div>
 
-                  <p className="text-slate-400 text-sm leading-relaxed">
-                    Next-generation stablecoin protocol enabling
-                    institutional-grade cross-border payments with domestic
-                    yield capture.
-                  </p>
+                  {/* Enhanced description */}
+                  <div className="text-center mb-4">
+                    <p className="text-blue-100 text-sm leading-relaxed font-medium">
+                      Next-generation stablecoin protocol enabling
+                      institutional-grade cross-border payments with domestic
+                      yield capture.
+                    </p>
+                  </div>
+
+                  {/* Feature badges */}
+                  <div className="flex justify-center space-x-3 mb-4">
+                    <div className="bg-white/10 backdrop-blur-sm rounded-full px-3 py-1 border border-white/20">
+                      <span className="text-blue-100 text-xs font-medium">
+                        Oracle Network
+                      </span>
+                    </div>
+                    <div className="bg-white/10 backdrop-blur-sm rounded-full px-3 py-1 border border-white/20">
+                      <span className="text-blue-100 text-xs font-medium">
+                        Chainlink Functions
+                      </span>
+                    </div>
+                    <div className="bg-white/10 backdrop-blur-sm rounded-full px-3 py-1 border border-white/20">
+                      <span className="text-blue-100 text-xs font-medium">
+                        Secure
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Status indicator */}
+                  <div className="flex items-center justify-center space-x-2">
+                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                    <span className="text-green-300 text-xs font-medium">
+                      Infrastructure Active
+                    </span>
+                  </div>
                 </div>
 
-                <div className="text-center mt-1 text-blue-100 text-sm">
-                  Secure Oracle Network & Cross-Chain Infrastructure
-                </div>
+                {/* Decorative elements */}
+                <div className="absolute top-2 right-2 w-2 h-2 bg-blue-300 rounded-full opacity-60"></div>
+                <div className="absolute bottom-2 left-2 w-1 h-1 bg-indigo-300 rounded-full opacity-60"></div>
               </div>
             </div>
             <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl p-8 shadow-2xl">
