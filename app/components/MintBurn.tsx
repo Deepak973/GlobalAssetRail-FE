@@ -907,7 +907,7 @@ const MintBurn = () => {
                                     </span>
                                   </div>
                                   <div className="text-sm text-slate-600">
-                                    Balance: {formatTokenAmount(balance, key)}{" "}
+                                    Balance: {balance}{" "}
                                     {erc20Assets[key]?.symbol}
                                   </div>
                                 </div>
