@@ -6,6 +6,15 @@ import Footer from "./components/Footer";
 import { AlertsProvider } from "./providers/AllertProvider";
 import { Notifier } from "./hooks/Notifier";
 
+export const metadata = {
+  title: "Global Asset Rail",
+  description: "Global Asset Movement Platform",
+  icons: {
+    icon: "/gar-logo.png",
+    shortcut: "/gar-logo.png",
+    apple: "/gar-logo.png",
+  },
+};
 export default async function RootLayout({
   children,
 }: Readonly<{

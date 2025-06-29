@@ -21,6 +21,7 @@ import {
 import MenuIcon from "@mui/icons-material/Menu";
 import CloseIcon from "@mui/icons-material/Close";
 import { ConnectButton } from "@/app/components/ConnectButton";
+import Image from "next/image";
 
 const navLinks = [
   { label: "Dashboard", href: "/dashboard" },
@@ -53,16 +54,23 @@ export const NavBar = () => {
           <Toolbar disableGutters sx={{ justifyContent: "space-between" }}>
             {/* Logo + Brand */}
             <Box display="flex" alignItems="center">
-              <Box
-                sx={{
-                  width: 32,
-                  height: 32,
-                  background: "linear-gradient(to right, #4F46E5, #3B82F6)",
-                  borderRadius: 2,
-                  mr: 1.5,
+              <Link
+                key={"home"}
+                href={"/"}
+                passHref
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  textDecoration: "none",
                 }}
-              />
-              <Link key={"home"} href={"/"} passHref>
+              >
+                <Image
+                  src="/gar-logo.png"
+                  alt="Global Asset Rail Logo"
+                  width={32}
+                  height={32}
+                  style={{ borderRadius: 8, marginRight: 12 }}
+                />
                 <Typography
                   variant="h6"
                   noWrap
